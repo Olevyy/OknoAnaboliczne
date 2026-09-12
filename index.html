@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="pl" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Okno Anaboliczne</title>
+  <meta name="description" content="Śledzenie białka z kroczącym oknem anabolicznym">
+  <meta name="theme-color" content="#f6f7f9">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="stylesheet" href="css/styles.css">
+  <script>
+    // motyw przed renderem, żeby nie mignęło
+    try {
+      const t = JSON.parse(localStorage.getItem('oknoAnaboliczne.v1'))?.settings?.theme || 'system';
+      document.documentElement.dataset.theme =
+        t === 'system' ? (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : t;
+    } catch {}
+  </script>
+</head>
+<body>
+  <main class="app">
+    <!-- ============ DZIŚ ============ -->
+    <section class="view" id="view-today" data-view="today">
+      <header class="topbar">
+        <h1>Okno anaboliczne</h1>
+        <span class="muted" id="today-date"></span>
+      </header>
+
+      <div class="card window-card">
+        <div class="ring-wrap">
+          <svg class="ring" viewBox="0 0 120 120" aria-hidden="true">
+            <defs>
+              <linearGradient id="ring-grad" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" stop-color="var(--ring-a)"/>
+                <stop offset="1" stop-color="var(--ring-b)"/>
+              </linearGradient>
+            </defs>
+            <circle class="ring-track" cx="60" cy="60" r="52"/>
+            <circle class="ring-fill" id="ring-fill" cx="60" cy="60" r="52"/>
+          </svg>
+          <div class="ring-center">
+            <div class="ring-used"><span id="win-used">0</span><small> g</small></div>
+            <div class="muted small">z <span id="win-limit">50</span> g w <span id="win-hours">3</span> h</div>
+          </div>
+        </div>
+        <div class="window-info">
+          <div class="muted small">Możesz teraz zjeść</div>
+          <div class="available" id="win-available">50 g</div>
+          <div class="status" id="win-status"></div>
+          <ul class="releases" id="win-releases"></ul>
+        </div>
+      </div>
+
+      <div class="card day-card">
+        <div class="row between">
+          <span class="label">Dzisiaj</span>
+          <span><strong id="day-total">0</strong> / <span id="day-goal">0</span> g</span>
+        </div>
+        <div class="bar"><div class="bar-fill" id="day-bar"></div></div>
+        <div class="muted small" id="day-left"></div>
+      </div>
+
+      <div class="section-head">
+        <h2>Szybkie dodawanie</h2>
+      </div>
+      <div class="products" id="quick-products"></div>
+
+      <div class="section-head">
+        <h2>Dzisiejsze wpisy</h2>
+      </div>
+      <ul class="entries" id="today-entries"></ul>
+    </section>
+
+    <!-- ============ HISTORIA ============ -->
+    <section class="view" id="view-history" data-view="history" hidden>
+      <header class="topbar"><h1>Historia</h1></header>
+      <div class="card stats" id="history-stats"></div>
+      <div id="history-list"></div>
+    </section>
+
+    <!-- ============ USTAWIENIA ============ -->
+    <section class="view" id="view-settings" data-view="settings" hidden>
+      <header class="topbar"><h1>Ustawienia</h1></header>
+
+      <div class="card">
+        <h2>Motyw</h2>
+        <div class="themes" id="theme-picker">
+          <button class="theme-opt" data-theme-opt="system"><span class="sw sw-system"></span>System</button>
+          <button class="theme-opt" data-theme-opt="light"><span class="sw sw-light"></span>Jasny</button>
+          <button class="theme-opt" data-theme-opt="dark"><span class="sw sw-dark"></span>Ciemny</button>
+          <button class="theme-opt" data-theme-opt="dracula"><span class="sw sw-dracula"></span>Dracula</button>
+          <button class="theme-opt" data-theme-opt="parchment"><span class="sw sw-parchment"></span>Pergamin</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Okno anaboliczne</h2>
+        <label class="field">
+          <span>Długość okna</span>
+          <span class="input-unit"><input type="number" id="set-window-hours" min="0.5" max="12" step="0.5" inputmode="decimal"><em>h</em></span>
+        </label>
+        <label class="field">
+          <span>Limit w oknie</span>
+          <span class="input-unit"><input type="number" id="set-window-limit" min="5" max="200" step="5" inputmode="numeric"><em>g</em></span>
+        </label>
+        <p class="hint">Organizm wykorzysta też większą porcję, ale wolniej. Rozkładanie białka na 3–5 posiłków po 20–50 g to rozsądna praktyka.</p>
+      </div>
+
+      <div class="card">
+        <h2>Cel dzienny</h2>
+        <div class="segmented" id="goal-mode">
+          <button data-mode="auto">Z wagi</button>
+          <button data-mode="manual">Ręcznie</button>
+        </div>
+        <div id="goal-auto">
+          <label class="field">
+            <span>Waga</span>
+            <span class="input-unit"><input type="number" id="set-weight" min="30" max="250" step="0.1" inputmode="decimal"><em>kg</em></span>
+          </label>
+          <div class="segmented" id="goal-type">
+            <button data-type="bulk">Masa</button>
+            <button data-type="maintain">Utrzymanie</button>
+            <button data-type="cut">Redukcja</button>
+          </div>
+          <label class="field">
+            <span>Masa</span>
+            <span class="input-unit"><input type="number" data-gkg="bulk" min="0.5" max="4" step="0.1" inputmode="decimal"><em>g/kg</em></span>
+          </label>
+          <label class="field">
+            <span>Utrzymanie</span>
+            <span class="input-unit"><input type="number" data-gkg="maintain" min="0.5" max="4" step="0.1" inputmode="decimal"><em>g/kg</em></span>
+          </label>
+          <label class="field">
+            <span>Redukcja</span>
+            <span class="input-unit"><input type="number" data-gkg="cut" min="0.5" max="4" step="0.1" inputmode="decimal"><em>g/kg</em></span>
+          </label>
+        </div>
+        <div id="goal-manual" hidden>
+          <label class="field">
+            <span>Cel</span>
+            <span class="input-unit"><input type="number" id="set-manual-goal" min="10" max="500" step="5" inputmode="numeric"><em>g</em></span>
+          </label>
+        </div>
+        <div class="goal-result">Cel: <strong id="goal-result">0 g</strong></div>
+      </div>
+
+      <div class="card">
+        <h2>Zapisane produkty</h2>
+        <ul class="manage-list" id="manage-products"></ul>
+        <button class="btn ghost full" id="btn-new-product">+ Nowy produkt</button>
+      </div>
+
+      <div class="card">
+        <h2>Dane</h2>
+        <p class="hint">Dane zostają tylko w tym telefonie. Co jakiś czas zrób kopię.</p>
+        <div class="row gap">
+          <button class="btn ghost" id="btn-export">Eksportuj</button>
+          <label class="btn ghost">Importuj<input type="file" id="file-import" accept="application/json,.json" hidden></label>
+        </div>
+        <button class="btn danger-ghost full" id="btn-clear">Usuń wszystkie dane</button>
+      </div>
+      <p class="muted small center">Okno Anaboliczne v1.0</p>
+    </section>
+  </main>
+
+  <button class="fab" id="fab-add" aria-label="Dodaj białko">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+  </button>
+
+  <nav class="tabbar">
+    <button class="tab active" data-tab="today">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l2.5 2"/></svg>
+      <span>Dziś</span>
+    </button>
+    <button class="tab" data-tab="history">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19V11M12 19V5M19 19v-6"/></svg>
+      <span>Historia</span>
+    </button>
+    <button class="tab" data-tab="settings">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg>
+      <span>Ustawienia</span>
+    </button>
+  </nav>
+
+  <!-- ============ ARKUSZ: WPIS ============ -->
+  <dialog class="sheet" id="entry-sheet">
+    <form method="dialog" id="entry-form" novalidate>
+      <div class="sheet-handle"></div>
+      <div class="row between">
+        <h2 id="entry-title">Dodaj białko</h2>
+        <button type="button" class="icon-btn" data-close aria-label="Zamknij">✕</button>
+      </div>
+
+      <div class="grams-input">
+        <input type="text" id="entry-grams" inputmode="decimal" placeholder="0" autocomplete="off" aria-label="Gramy białka">
+        <span>g białka</span>
+      </div>
+      <div class="chips" id="grams-presets">
+        <button type="button" class="chip" data-add="5">+5</button>
+        <button type="button" class="chip" data-add="10">+10</button>
+        <button type="button" class="chip" data-set="20">20</button>
+        <button type="button" class="chip" data-set="30">30</button>
+        <button type="button" class="chip" data-set="40">40</button>
+      </div>
+
+      <div class="sheet-products" id="sheet-products"></div>
+
+      <input type="text" id="entry-name" class="text-input" placeholder="Nazwa (opcjonalnie), np. Skyr" autocomplete="off" maxlength="40">
+
+      <div class="label small">Kiedy?</div>
+      <div class="chips" id="time-chips">
+        <button type="button" class="chip" data-ago="0">Teraz</button>
+        <button type="button" class="chip" data-ago="15">−15 min</button>
+        <button type="button" class="chip" data-ago="30">−30 min</button>
+        <button type="button" class="chip" data-ago="60">−1 h</button>
+        <input type="time" id="entry-time" class="time-input" aria-label="Godzina">
+      </div>
+      <div class="muted small" id="entry-when"></div>
+
+      <label class="check" id="save-product-row">
+        <input type="checkbox" id="entry-save-product">
+        <span>Zapisz jako produkt do szybkiego dodawania</span>
+      </label>
+
+      <div class="preview" id="entry-preview"></div>
+
+      <div class="row gap sheet-actions">
+        <button type="button" class="btn danger-ghost" id="entry-delete" hidden>Usuń</button>
+        <button type="submit" class="btn primary grow" id="entry-submit">Dodaj</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- ============ ARKUSZ: PRODUKT ============ -->
+  <dialog class="sheet" id="product-sheet">
+    <form method="dialog" id="product-form" novalidate>
+      <div class="sheet-handle"></div>
+      <div class="row between">
+        <h2 id="product-title">Produkt</h2>
+        <button type="button" class="icon-btn" data-close aria-label="Zamknij">✕</button>
+      </div>
+      <input type="text" id="product-name" class="text-input" placeholder="Nazwa, np. Odżywka 1 miarka" maxlength="40" autocomplete="off">
+      <div class="grams-input">
+        <input type="text" id="product-grams" inputmode="decimal" placeholder="0" autocomplete="off" aria-label="Gramy białka w porcji">
+        <span>g białka w porcji</span>
+      </div>
+      <div class="row gap sheet-actions">
+        <button type="button" class="btn danger-ghost" id="product-delete" hidden>Usuń</button>
+        <button type="submit" class="btn primary grow">Zapisz</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div class="toast" id="toast" hidden>
+    <span id="toast-text"></span>
+    <button class="toast-action" id="toast-action" hidden></button>
+  </div>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

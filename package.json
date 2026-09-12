@@ -1,0 +1,9 @@
+{
+  "name": "okno-anaboliczne",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/logic.test.js",
+    "serve": "npx --yes http-server -c-1 -p 8080 ."
+  }
+}
